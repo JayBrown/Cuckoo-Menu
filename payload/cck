@@ -1,0 +1,737 @@
+#!/bin/zsh
+# shellcheck shell=bash
+
+# Cuckoo Agent (cck v1.0.0)
+# agent shell script
+
+export LANG=en_US.UTF-8
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin
+
+vstr="1.00"
+process="cck"
+cckmbase="cckm.6h.sh"
+
+if [[ $1 == "--version" ]] ; then
+	echo "$vstr"
+	exit
+fi
+[[ $1 == "--init" ]] && init=true || init=false
+
+current_minute_raw=$(date +%M)
+current_hour_raw=$(date +%H)
+current_minute=$(echo "$current_minute_raw" | sed -e 's/^0//' -e 's/^ //')
+current_hour=$(echo "$current_hour_raw" | sed -e 's/^0//' -e 's/^ //')
+timestr="[$current_hour_raw:$current_minute_raw]"
+
+accountname=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
+HOMEDIR=$(eval echo "~$accountname")
+
+prefs="local.lcars.cck"
+prefsloc="$HOMEDIR/Library/Preferences/$prefs.plist"
+if ! [[ -f "$prefsloc" ]] || $init ; then
+	posixdate=$(date +%s)
+	defaults write "$prefs" AfterHours -bool true 2>/dev/null
+	defaults write "$prefs" AppsDir "/Applications" 2>/dev/null
+	defaults write "$prefs" available "" 2>/dev/null
+	defaults write "$prefs" DownloadsFolder "$HOMEDIR/Downloads" 2>/dev/null
+	defaults write "$prefs" enabled -bool true 2>/dev/null
+	defaults write "$prefs" fourStrikes -bool false 2>/dev/null
+	defaults write "$prefs" Interval "30" 2>/dev/null
+	defaults write "$prefs" lastUpdateCheck "$posixdate" 2>/dev/null
+	defaults write "$prefs" NightMode -bool false 2>/dev/null
+	defaults write "$prefs" notAfter "23" 2>/dev/null
+	defaults write "$prefs" notBefore "7" 2>/dev/null
+	defaults write "$prefs" Notifications -bool false 2>/dev/null
+	defaults write "$prefs" PlaybackRate "1.00" 2>/dev/null
+	defaults write "$prefs" SearchDir "$HOMEDIR/Music" 2>/dev/null
+	defaults write "$prefs" silentTriduum -bool false 2>/dev/null
+	defaults write "$prefs" skipApps -bool true 2>/dev/null
+	defaults write "$prefs" skipAudio -bool true 2>/dev/null
+	defaults write "$prefs" skipScreensaver -bool true 2>/dev/null
+	defaults write "$prefs" skipScreenSleep -bool true 2>/dev/null
+	defaults write "$prefs" Sound "Cuckoo Clock.mp3" 2>/dev/null
+	defaults write "$prefs" SunriseWarnHours "4" 2>/dev/null
+	defaults write "$prefs" tollHour -bool false 2>/dev/null
+	defaults write "$prefs" tollQuarterHour -bool false 2>/dev/null
+	defaults write "$prefs" Volume "0.10" 2>/dev/null
+	defaults write "$prefs" warnBeforeSunrise -bool true 2>/dev/null
+	defaults write "$prefs" Western -bool true 2>/dev/null
+fi
+
+if $init ; then
+	currentdate=$(date)
+	echo "$process [$currentdate] preferences init" >> "/tmp/local.lcars.cck.stdout"
+	exit
+fi
+
+# check activation
+if [[ $(/usr/libexec/PlistBuddy -c "Print:enabled" "$prefsloc" 2>/dev/null) != "true" ]] ; then
+	echo "$process $timestr chimes disabled" >&2
+	exit
+fi
+
+# check interval
+tollhour=false
+tollquarter=false
+fourstrikes=false
+addtollcount=0
+if [[ $(/usr/libexec/PlistBuddy -c "Print:tollHour" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	tollhour=true
+	if [[ $(/usr/libexec/PlistBuddy -c "Print:tollQuarterHour" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+		tollquarter=true
+		if [[ $current_minute == 0 ]] ; then
+			addtollcount=4
+		elif [[ $current_minute == 15 ]] ; then
+			addtollcount=1
+		elif [[ $current_minute == 30 ]] ; then
+			addtollcount=2
+		elif [[ $current_minute == 45 ]] ; then
+			addtollcount=3
+		else
+			echo "$process $timestr outside of regular interval (15)" >&2
+			exit
+		fi
+	else
+		if [[ $(/usr/libexec/PlistBuddy -c "Print:fourStrikes" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+			fourstrikes=true
+		fi
+	fi
+fi
+if ! $tollquarter ; then
+	interval=$(/usr/libexec/PlistBuddy -c "Print:Interval" "$prefsloc" 2>/dev/null)
+	! [[ $interval ]] && interval=30
+	[[ $interval -gt 60 ]] && interval=60
+	[[ $interval -le 0 ]] && interval=30
+	if [[ $interval -eq 60 ]] ; then
+		if ! [[ $current_minute -eq 0 ]] ; then
+			exit
+		fi
+	elif [[ $interval -lt 60 ]] ; then
+		if [[ $interval -eq 30 ]] ; then
+			if ! [[ $current_minute =~ ^(0|30)$ ]] ; then
+				echo "$process $timestr outside of regular interval ($interval)" >&2
+				exit
+			fi
+		elif [[ $interval -eq 20 ]] ; then
+			if ! [[ $current_minute =~ ^(0|20|40)$ ]] ; then
+				echo "$process $timestr outside of regular interval ($interval)" >&2
+				exit
+			fi
+		elif [[ $interval -eq 15 ]] ; then
+			if ! [[ $current_minute =~ ^(0|15|30|45)$ ]] ; then
+				echo "$process $timestr outside of regular interval ($interval)" >&2
+				exit
+			fi
+		elif [[ $interval -eq 10 ]] ; then
+			if ! [[ $current_minute =~ ^(0|10|20|30|40|50)$ ]] ; then
+				echo "$process $timestr outside of regular interval ($interval)" >&2
+				exit
+			fi
+		elif [[ $interval -eq 5 ]] ; then
+			if ! [[ $current_minute =~ ^(0|5|10|15|20|25|30|35|40|45|50|55)$ ]] ; then
+				echo "$process $timestr outside of regular interval ($interval)" >&2
+				exit
+			fi
+		else
+			echo "$process $timestr error: wrong interval" >&2
+			exit
+		fi
+	else
+		echo "$process $timestr error: wrong interval" >&2
+		exit
+	fi
+fi
+
+# check for screen sleep
+if [[ $(/usr/libexec/PlistBuddy -c "Print:skipScreenSleep" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	if [[ $(ioreg -c AppleBacklightDisplay | grep "brightness" | awk -F"\"dsyp\"=" '{print $NF}' | awk -F"}," '{print $1}' | awk -F"=" '{print $NF}') == "0" ]] ; then
+		echo "$process $timestr screen sleep is active: skipping..." >&2
+		exit
+	fi
+fi
+
+# check for screensaver
+if [[ $(/usr/libexec/PlistBuddy -c "Print:skipScreensaver" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	if ps aux | grep "[S]creenSaverEngine" | grep -v "grep" &>/dev/null ; then
+		echo "$process $timestr screensaver is active: skipping..." >&2
+		exit
+	fi
+fi
+
+# shared variables
+configdir="$HOMEDIR/Library/Application Support/$prefs"
+sundata_loc="$configdir/solar_data"
+sundata=""
+sundataday=""
+yearday=""
+sunraw=""
+sunrise_hour=""
+sunrise_minute=""
+thisyear=""
+currentposix=""
+account=""
+warn=false
+
+# check sunrise warning
+if [[ $(/usr/libexec/PlistBuddy -c "Print:warnBeforeSunrise" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	warnhours=$(/usr/libexec/PlistBuddy -c "Print:SunriseWarnHours" "$prefsloc" 2>/dev/null)
+	sundata=$(cat "$sundata_loc" 2>/dev/null)
+	if [[ $sundata ]] ; then
+		sundataday=$(echo "$sundata" | head -1 2>/dev/null)
+		sdd_error=false
+		yearday=$(date +%j | sed 's/^0*//')
+		if [[ $sundataday != "$yearday" ]] ; then
+			sundataday=$((sundataday+1))
+			if [[ $sundataday != "$yearday" ]] ; then
+				sdd_error=true
+			fi
+		fi
+		if ! $sdd_error ; then
+			sunraw=$(echo "$sundata" | grep ":" 2>/dev/null)
+			if [[ $sunraw ]] ; then
+				if [[ $sunraw == "permanent:Night" ]] ; then
+					echo "$process $timestr permanent night: skipping sunrise warning" >&2
+					exit
+				elif [[ $sunraw == "permanent:Day" ]] ; then
+					echo "$process $timestr permanent day: skipping sunrise warning" >&2
+					exit
+				fi
+				sunrise_hour=$(echo "$sunraw" | awk -F":" '{print $1}')
+				[[ $(echo -n "$sunrise_hour" | wc -c) -eq 1 ]] && sunrise_hour=" $sunrise_hour"
+				sunrise_minute=$(echo "$sunraw" | awk -F":" '{print $2}')
+				[[ $(echo -n "$sunrise_minute" | wc -c) -eq 1 ]] && sunrise_minute="0$sunrise_minute"
+				thisyear=$(date +%Y)
+				sunrisedate="$thisyear $sundataday $sunrise_hour $sunrise_minute"
+				sunriseposix=$(date -jf "%Y %j %k %M" "$sunrisedate" +%s)
+				currentposix=$(date +%s)
+				secsdiff=$((sunriseposix-currentposix))
+				if [[ $secsdiff -lt 0 ]] ; then
+					sundataday=$((sundataday+1))
+					sunrisedate="$thisyear $sundataday $sunrise_hour $sunrise_minute"
+					sunriseposix=$(date -jf "%Y %j %k %M" "$sunrisedate" +%s)
+					secsdiff=$((sunriseposix-currentposix))
+				fi
+				warnseconds=$((warnhours*3600))
+				if [[ $secsdiff -le "$warnseconds" ]] ; then
+					warn=true
+				else
+					warn=false
+				fi
+			else
+				echo "$process $timestr error parsing solar data" >&2
+			fi
+		else
+			echo "$process $timestr error: solar data out of range" >&2
+		fi
+	else
+		echo "$process $timestr error: missing solar data" >&2
+	fi
+fi
+
+# more shared variables
+sunset_hour=""
+sunset_minute=""
+wouldskip=false
+fixhours=false
+
+# silent Triduum Sacrum
+if [[ $(/usr/libexec/PlistBuddy -c "Print:silentTriduum" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	easterdates_loc="$configdir/triduum"
+	easterdates=$(cat "$easterdates_loc" 2>/dev/null)
+	if ! [[ $easterdates ]] ; then
+		echo "$process $timestr error: Easter dates missing" >&2
+	else
+		easteryear=$(echo "$easterdates" | head -1)
+		! [[ $thisyear ]] && thisyear=$(date +%Y)
+		if [[ $easteryear != "$thisyear" ]] ; then
+			echo "$process $timestr error: Easter data out of range" >&2
+		else
+			easterdays=$(echo "$easterdates" | grep ";")
+			if ! [[ $easterdays ]] ; then
+				echo "$process $timestr Easter dates parsing error" >&2
+			else
+				! [[ $yearday ]] && yearday=$(date +%j | sed 's/^0*//')
+				if echo "$easterdays" | grep -q "$yearday;" &>/dev/null ; then
+					gfri=$(echo "$easterdays" | awk -F";" '{print $2}')
+					if [[ $yearday == "$gfri" ]] ; then
+						echo "$process $timestr Good Friday: skipping" >&2
+						exit
+					fi
+					hsat=$(echo "$easterdays" | awk -F";" '{print $3}')
+					if [[ $yearday == "$hsat" ]] ; then
+						echo "$process $timestr Holy Saturday: skipping" >&2
+						exit
+					fi
+					mthu=$(echo "$easterdays" | awk -F";" '{print $1}')
+					if [[ $yearday == "$mthu" ]] ; then
+						if ! [[ $sundata ]] ; then
+							sundata=$(cat "$sundata_loc" 2>/dev/null)
+						fi
+						if [[ $sundata ]] ; then
+							sundataday=$(echo "$sundata" | head -1 2>/dev/null)
+							sdd_error=false
+							if [[ $sundataday != "$yearday" ]] ; then
+								sundataday=$((sundataday+1))
+								if [[ $sundataday != "$yearday" ]] ; then
+									sundataday=$((sundataday-2))
+									if [[ $sundataday != "$yearday" ]] ; then
+										sdd_error=true
+									else
+										sunraw=""
+									fi
+								fi
+							fi
+							if ! $sdd_error ; then
+								! [[ $sunraw ]] && sunraw=$(echo "$sundata" | grep ":" 2>/dev/null)
+								if [[ $sunraw ]] ; then
+									if [[ $sunraw == "permanent:"* ]] ; then
+										sunset_hour="18"
+										fixhours=true
+									else
+										sunset_hour=$(echo "$sunraw" | awk -F":" '{print $3}')
+										if [[ $sunset_hour -ge 21 ]] || [[ $sunset_hour -le 15 ]] ; then
+											sunset_hour="18"
+											fixhours=true
+										else
+											sunrise_hour=$(echo "$sunraw" | awk -F":" '{print $1}')
+											if [[ $sunrise_hour -eq 0 ]] || [[ $sunrise_hour -gt "$sunset_hour" ]] || [[ $sunrise_hour -eq "$sunset_hour" ]] ; then
+												sunset_hour="18"
+												fixhours=true
+											fi
+										fi
+									fi
+									if [[ $current_hour -eq "$sunset_hour" ]] ; then
+										if $fixhours ; then
+											sunset_minute="0"
+										else
+											sunset_minute=$(echo "$sunraw" | awk -F":" '{print $4}' | sed -e 's/^0//' -e 's/^ //')
+										fi
+										if [[ $current_minute -ge "$sunset_minute" ]] ; then
+											echo "$process $timestr Maundy Thursday after sunset: skipping" >&2
+											exit
+										fi
+									else
+										if [[ $current_hour -gt "$sunset_hour" ]] ; then
+											echo "$process $timestr Maundy Thursday after sunset: skipping" >&2
+											exit
+										fi
+									fi
+								else
+									echo "$process $timestr error parsing solar data" >&2
+								fi
+							else
+								echo "$process $timestr error: solar data out of range" >&2
+							fi
+						else
+							echo "$process $timestr error: missing solar data" >&2
+						fi
+					else
+						esun=$(echo "$easterdays" | awk -F";" '{print $4}')
+						if [[ $yearday == "$esun" ]] ; then
+							if ! [[ $sundata ]] ; then
+								sundata=$(cat "$sundata_loc" 2>/dev/null)
+							fi
+							if [[ $sundata ]] ; then
+								sundataday=$(echo "$sundata" | head -1 2>/dev/null)
+								sdd_error=false
+								if [[ $sundataday != "$yearday" ]] ; then
+									sundataday=$((sundataday+1))
+									if [[ $sundataday != "$yearday" ]] ; then
+										sundataday=$((sundataday-2))
+										if [[ $sundataday != "$yearday" ]] ; then
+											sdd_error=true
+										else
+											sunraw=""
+										fi
+									fi
+								fi
+								if ! $sdd_error ; then
+									! [[ $sunraw ]] && sunraw=$(echo "$sundata" | grep ":" 2>/dev/null)
+									if [[ $sunraw ]] ; then
+										if [[ $sunraw == "permanent:"* ]] ; then
+											sunrise_hour="6"
+											fixhours=true
+										else
+											sunrise_hour=$(echo "$sunraw" | awk -F":" '{print $1}')
+											if [[ $sunrise_hour -ge 9 ]] || [[ $sunrise_hour -le 3 ]] ; then
+												sunrise_hour="6"
+												fixhours=true
+											else
+												sunset_hour=$(echo "$sunraw" | awk -F":" '{print $3}')
+												if [[ $sunset_hour -eq 0 ]] || [[ $sunrise_hour -gt "$sunset_hour" ]] || [[ $sunrise_hour -eq "$sunset_hour" ]] ; then
+													sunrise_hour="6"
+													fixhours=true
+												fi
+											fi
+										fi
+										if [[ $current_hour -eq "$sunrise_hour" ]] ; then
+											if $fixhours ; then
+												sunrise_minute="0"
+											else
+												sunrise_minute=$(echo "$sunraw" | awk -F":" '{print $2}' | sed -e 's/^0//' -e 's/^ //')
+											fi
+											if [[ $current_minute -lt "$sunrise_minute" ]] ; then
+												echo "$process $timestr Easter Sunday before sunrise: skipping" >&2
+												exit
+											fi
+										else
+											if [[ $current_hour -lt "$sunrise_hour" ]] ; then
+												echo "$process $timestr Easter Sunday before sunrise: skipping" >&2
+												exit
+											fi
+										fi
+									else
+										echo "$process $timestr error parsing solar data" >&2
+									fi
+								else
+									echo "$process $timestr error: solar data out of range" >&2
+								fi
+							else
+								echo "$process $timestr error: missing solar data" >&2
+							fi
+						else
+							echo "$process $timestr internal error: Easter dates" >&2
+						fi
+					fi
+				fi
+			fi
+		fi
+	fi
+fi
+
+# check after-hours
+if [[ $(/usr/libexec/PlistBuddy -c "Print:AfterHours" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	if [[ $(/usr/libexec/PlistBuddy -c "Print:NightMode" "$prefsloc" 2>/dev/null) != "true" ]] ; then
+		notafter=$(/usr/libexec/PlistBuddy -c "Print:notAfter" "$prefsloc" 2>/dev/null)
+		if ! [[ $notafter ]] || [[ $notafter -gt 23 ]] || [[ $notafter -lt 0 ]] ; then
+			notafter=23
+		fi
+		notbefore=$(/usr/libexec/PlistBuddy -c "Print:notBefore" "$prefsloc" 2>/dev/null)
+		if ! [[ $notbefore ]] || [[ $notbefore -lt 0 ]] || [[ $notbefore -gt 23 ]] ; then
+			notbefore=7
+		fi
+		if [[ $notafter != "$notbefore" ]] ; then
+			if [[ $current_hour -eq "$notafter" ]] ; then
+				if ! [[ $current_minute -eq 0 ]] ; then
+					! $wouldskip && echo "$process $timestr after-hours: skipping..." >&2
+					if ! $warn ; then
+						exit
+					else
+						wouldskip=true
+					fi
+				fi
+			else
+				[[ $notafter == 0 ]] && notafter="24"
+				[[ $notbefore == 0 ]] && notbefore="24"
+				if [[ $current_hour -gt "$notafter" ]] || [[ $current_hour -lt "$notbefore" ]] ; then
+					! $wouldskip && echo "$process $timestr after-hours: skipping..." >&2
+					if ! $warn ; then
+						exit
+					else
+						wouldskip=true
+					fi
+				fi
+			fi
+		fi
+	else
+		if ! [[ $sundata ]] ; then
+			sundata=$(cat "$sundata_loc" 2>/dev/null)
+		fi
+		if [[ $sundata ]] ; then
+			sundataday=$(echo "$sundata" | head -1 2>/dev/null)
+			sdd_error=false
+			if ! [[ $yearday ]] ; then
+				yearday=$(date +%j | sed 's/^0*//')
+			fi
+			if [[ $sundataday != "$yearday" ]] ; then
+				sundataday=$((sundataday+1))
+				if [[ $sundataday != "$yearday" ]] ; then
+					sundataday=$((sundataday-2))
+					if [[ $sundataday != "$yearday" ]] ; then
+						sdd_error=true
+					else
+						sunraw=""
+					fi
+				fi
+			fi
+			if ! $sdd_error ; then
+				! [[ $sunraw ]] && sunraw=$(echo "$sundata" | grep ":" 2>/dev/null)
+				if [[ $sunraw ]] ; then
+					if [[ $sunraw == "permanent:Night" ]] ; then
+						! $wouldskip && echo "$process $timestr permanent night mode: skipping" >&2
+						exit
+					fi
+					if [[ $sunraw != "permanent:Day" ]] ; then
+						sunset_hour=$(echo "$sunraw" | awk -F":" '{print $3}')
+						if [[ $current_hour -eq "$sunset_hour" ]] ; then
+							sunset_minute=$(echo "$sunraw" | awk -F":" '{print $4}' | sed -e 's/^0//' -e 's/^ //')
+							if [[ $current_minute -ge "$sunset_minute" ]] ; then
+								! $wouldskip && echo "$process $timestr sun is down: skipping (Night Mode)" >&2
+								if ! $warn ; then
+									exit
+								else
+									wouldskip=true
+								fi
+							fi
+						fi
+						sunrise_hour=$(echo "$sunraw" | awk -F":" '{print $1}')
+						if [[ $current_hour -eq "$sunrise_hour" ]] ; then
+							sunrise_minute=$(echo "$sunraw" | awk -F":" '{print $2}' | sed -e 's/^0//' -e 's/^ //')
+							if [[ $current_minute -lt "$sunrise_minute" ]] ; then
+								! $wouldskip && echo "$process $timestr sun is down: skipping (Night Mode)" >&2
+								if ! $warn ; then
+									exit
+								else
+									wouldskip=true
+								fi
+							fi
+						fi
+						[[ $sunrise_hour == 0 ]] && sunrise_hour="24"
+						[[ $sunset_hour == 0 ]] && sunset_hour="24"
+						if [[ $current_hour -gt "$sunset_hour" ]] || [[ $current_hour -lt "$sunrise_hour" ]] ; then
+							! $wouldskip && echo "$process $timestr sun is down: skipping (Night Mode)" >&2
+							if ! $warn ; then
+								exit
+							else
+								wouldskip=true
+							fi
+						fi
+					fi
+				else
+					echo "$process $timestr error parsing solar data" >&2
+				fi
+			else
+				echo "$process $timestr error: solar data out of range" >&2
+			fi
+		else
+			echo "$process $timestr error: missing solar data" >&2
+		fi
+	fi
+fi
+
+# check for audio playing	
+if [[ $(/usr/libexec/PlistBuddy -c "Print:skipAudio" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	if pmset -g 2>/dev/null | awk -F"(" '/^ sleep/{print $NF}' | grep -q "coreaudiod" &>/dev/null ; then
+		! $wouldskip && echo "$process $timestr coreaudiod is active: skipping..." >&2 
+		if ! $warn ; then
+			exit
+		else
+			wouldskip=true
+		fi
+	fi
+fi
+
+# check for active apps & frontmost app
+if [[ $(/usr/libexec/PlistBuddy -c "Print:skipApps" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	blacklist_loc="$configdir/blacklist.txt"
+	blacklist=$(grep -v -e "^#" -e "^$" 2>/dev/null < "$blacklist_loc")
+	activeapps=false
+	while read -r blacklisted
+	do
+		pgrep "$blacklisted" &>/dev/null && activeapps=true
+	done < <(echo "$blacklist" | awk -F";" '{print $NF}')
+	if $activeapps ; then
+		frontmost=$(osascript -e 'tell application "System Events"' -e 'set frontAppID to bundle identifier of first process whose frontmost is true' -e 'end tell' 2>/dev/null)
+		if echo "$blacklist" | grep -q "^$frontmost;" &>/dev/null ; then
+			! $wouldskip && echo "$process $timestr $frontmost is frontmost application: skipping..." >&2
+			if ! $warn ; then
+				exit
+			else
+				wouldskip=true
+			fi
+		fi
+	fi
+fi
+
+uiprocess="Cuckoo Menu"
+# check for notifications-only
+if [[ $(/usr/libexec/PlistBuddy -c "Print:Notifications" "$prefsloc" 2>/dev/null) != "false" ]] ; then
+	notify=true
+	account=$(id -u)
+else
+	notify=false
+	$warn && account=$(id -u)
+fi
+
+# read audio preferences
+if ! $notify && ! $wouldskip ; then
+	soundsdir="$configdir/sounds"
+	defaultsound="Cuckoo Clock.mp3"
+	if ! [[ -f "$soundsdir/$defaultsound" ]] ; then
+		echo "$process $timestr error: '$defaultsound' missing" >&2
+		exit
+	fi
+	usersoundsdir="$HOMEDIR/Library/Sounds"
+	systemsoundsdir="/System/Library/Sounds"
+	coresoundsdir="/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds"
+	ccksound=$(/usr/libexec/PlistBuddy -c "Print:Sound" "$prefsloc" 2>/dev/null)
+	! [[ $ccksound ]] && ccksound="$defaultsound"
+	if [[ $ccksound == "user:"* ]] ; then
+		soundparent="$usersoundsdir"
+		prefix="user"
+		ccksound=$(echo "$ccksound" | awk -F":" '{print substr($0, index($0,$2))}')
+	elif [[ $ccksound == "system:"* ]] ; then
+		soundparent="$systemsoundsdir"
+		prefix="system"
+		ccksound=$(echo "$ccksound" | awk -F":" '{print substr($0, index($0,$2))}')
+	elif [[ $ccksound == "core:"* ]] ; then
+		soundparent="$coresoundsdir"
+		prefix="core"
+		ccksound=$(echo "$ccksound" | awk -F":" '{print substr($0, index($0,$2))}')
+	else
+		soundparent="$soundsdir"
+		prefix="cckm"
+	fi
+	if ! [[ -f "$soundparent/$ccksound" ]] ; then
+		ccksound="$defaultsound"
+		soundparent="$soundsdir"
+		prefix="cckm"
+	fi
+	volume=$(/usr/libexec/PlistBuddy -c "Print:Volume" "$prefsloc" 2>/dev/null)
+	! [[ $volume ]] && volume="0.10"
+	! echo "$volume > 1.00" | bc -l &>/dev/null && volume=1.00
+	! echo "$volume < 0.01" | bc -l &>/dev/null && volume=0.01
+	audiorate=$(/usr/libexec/PlistBuddy -c "Print:PlaybackRate" "$prefsloc" 2>/dev/null)
+	! [[ $audiorate ]] && audiorate="1.00"
+	if ! echo "$audiorate > 3.00" | bc -l &>/dev/null ; then
+		audiorate="3.00"
+	else
+		if ! echo "$audiorate < 0.33" | bc -l &>/dev/null ; then
+			audiorate="0.33"
+		fi
+	fi
+fi
+
+_notify () {
+	osascript &>/dev/null << EON
+tell application "System Events"
+	display notification "Quiet mode active" with title "$uiprocess ($process v" & "$vstr" & ") [" & "$account" & "]" subtitle "🔔 $timestr"
+end tell
+EON
+}
+
+_warn-notify () {
+	osascript &>/dev/null << EOM
+tell application "System Events"
+	display notification "🌅 Sunrise at $sunrise_hour:$sunrise_minute" with title "$uiprocess ($process v" & "$vstr" & ") [" & "$account" & "]" subtitle "🔔 $timestr"
+end tell
+EOM
+}
+
+_warn () {
+	osascript &>/dev/null << EOW
+tell application "System Events"
+	display notification "$sunrise_hour:$sunrise_minute" with title "$uiprocess ($process v" & "$vstr" & ") [" & "$account" & "]" subtitle "🌅 Sunrise in less than $warnhours hours"
+end tell
+EOW
+}
+
+_exit () {
+	open -g "bitbar://refreshPlugin?name=$cckmbase" &>/dev/null
+	exit
+}
+
+# chime
+if $warn && $wouldskip ; then
+	_warn
+	echo "$process $timestr warning before sunrise"
+	_exit
+fi
+if $tollhour ; then
+	if ! $notify ; then
+		$warn && _warn
+		if $tollquarter ; then
+			count=1
+			while true
+			do
+				afplay -q 1 -r "$audiorate" -v "$volume" "$soundparent/$ccksound" &>/dev/null
+				if [[ $count == "$addtollcount" ]] ; then
+					break
+				else
+					sleep .5
+				fi
+				((count++))
+			done
+			if [[ $current_minute -eq 0 ]] ; then
+				echo "$process $timestr toll quarter: $prefix:$ccksound ($addtollcount)"
+				sleep 3
+				
+			else
+				if ! $warn ; then
+					echo "$process $timestr toll quarter: $prefix:$ccksound ($addtollcount)"
+				else
+					echo "$process $timestr toll quarter: $prefix:$ccksound ($addtollcount) + sunrise warning"
+				fi
+				_exit
+			fi
+		fi
+		if [[ $current_minute -eq 0 ]] ; then
+			if $fourstrikes ; then
+				tollcount=4
+			else
+				if [[ $current_hour -gt 12 ]] ; then
+					tollcount=$((current_hour-12))
+				else
+					if [[ $current_hour -eq 0 ]] ; then
+						tollcount=12
+					else
+						tollcount="$current_hour"
+					fi
+				fi
+			fi
+			count=1
+			while true
+			do
+				afplay -q 1 -r "$audiorate" -v "$volume" "$soundparent/$ccksound" &>/dev/null
+				if [[ $count == "$tollcount" ]] ; then
+					break
+				else
+					sleep .5
+				fi
+				((count++))
+			done
+			if ! $warn ; then
+				echo "$process $timestr toll: $prefix:$ccksound ($tollcount)"
+			else
+				echo "$process $timestr toll: $prefix:$ccksound ($tollcount) + sunrise warning"
+			fi
+		else
+			tollcount=1
+			afplay -q 1 -r "$audiorate" -v "$volume" "$soundparent/$ccksound" &>/dev/null
+			if ! $warn ; then
+				echo "$process $timestr chime: $prefix:$ccksound ($tollcount)"
+			else
+				echo "$process $timestr chime: $prefix:$ccksound ($tollcount) + sunrise warning"
+			fi
+		fi
+	else
+		if ! $warn ; then
+			_notify
+			echo "$process $timestr notification (quiet mode)"
+		else
+			_warn-notify
+			echo "$process $timestr notification (quiet mode) + sunrise warning"
+		fi
+	fi
+else
+	if ! $notify ; then
+		if ! $warn ; then
+			afplay -q 1 -r "$audiorate" -v "$volume" "$soundparent/$ccksound" &>/dev/null
+			echo "$process $timestr chime: $prefix:$ccksound (1)"
+		else
+			_warn
+			afplay -q 1 -r "$audiorate" -v "$volume" "$soundparent/$ccksound" &>/dev/null
+			echo "$process $timestr chime: $prefix:$ccksound (1) + sunrise warning"
+		fi
+	else
+		if ! $warn ; then
+			_notify
+			echo "$process $timestr notification (quiet mode)"
+		else
+			_warn-notify
+			echo "$process $timestr notification (quiet mode) + sunrise warning"
+		fi
+	fi
+fi
+
+_exit
