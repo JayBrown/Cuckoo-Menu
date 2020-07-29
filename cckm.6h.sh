@@ -6,8 +6,8 @@
 # <bitbar.author>Joss Brown (pseud.)</bitbar.author>
 # <bitbar.author.github>JayBrown</bitbar.author.github>
 # <bitbar.desc>Manage the Cuckoo Agent (cck) from the menu bar</bitbar.desc>
-# <bitbar.image>undef</bitbar.image>
-# <bitbar.dependencies>sunshine</bitbar.dependencies>
+# <bitbar.image>https://raw.githubusercontent.com/JayBrown/Cuckoo-Menu/master/img/CuckooMenu_screengrab.png</bitbar.image>
+# <bitbar.dependencies>CoreLocationCLI,sunshine</bitbar.dependencies>
 # <bitbar.abouturl>https://github.com/JayBrown/bitbar-Cuckoo-Menu</bitbar.abouturl>
 # <bitbar.droptypes>filenames</bitbar.droptypes>
 
