@@ -13,7 +13,7 @@
 
 # Cuckoo Menu
 # BitBar plugin
-# Version: 1.0.0 beta 10 build 8
+# Version: 1.0.1 beta 10 build 9
 # Note: beta number conforms to BitBar's beta number
 # Category: Time
 #
@@ -33,10 +33,10 @@ export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin:/opt/local/bin:/opt/sw/
 
 # BitBar & dependency stuff
 monofont="font=Menlo-Regular size=10"
-version="1.0.0" # only for display
-cversion="1.00" # for version comparisons
+version="1.0.1" # only for display
+cversion="1.01" # for version comparisons
 betaversion="10"
-build="8"
+build="9"
 if [[ $betaversion ]] ; then
 	vmisc=" beta $betaversion"
 else
@@ -218,7 +218,7 @@ EOD
 	if [[ $1 == "cckuninstall" ]] ; then
 		afplay -q 1 -r 1.00 -v 0.10 "$soundsdir/$defaultsound" 2>/dev/null
 		rm -rf "$configdir" 2>/dev/null
-		mv "$0" "$HOMEDIR/.Trash/$myname" 2>/dev/null
+		mv -f "$mypath" "$HOMEDIR/.Trash/$myname" 2>/dev/null
 		osascript 2>/dev/null <<EOR
 tell application "BitBar" to quit
 delay 1
@@ -233,9 +233,9 @@ EOR
 		defaults write "$prefs" available "" 2>/dev/null
 		! [[ -d "$bindir" ]] && mkdir -p "$bindir" 2>/dev/null
 		! [[ -d "$soundsdir" ]] && mkdir -p "$soundsdir" 2>/dev/null
-		! [[ -f "$soundsdir/$defaultsound" ]] && cp "$dsnd_iloc" "$soundsdir/$defaultsound" 2>/dev/null
+		! [[ -f "$soundsdir/$defaultsound" ]] && cp -f "$dsnd_iloc" "$soundsdir/$defaultsound" 2>/dev/null
 		currentdate=$(date)
-		if cp "$cck_iloc" "$cck_loc" &>/dev/null ; then
+		if cp -f "$cck_iloc" "$cck_loc" &>/dev/null ; then
 			if chmod +x "$cck_loc" &>/dev/null ; then
 				echo "$process [$currentdate] cck reinstalled" >> "$stdout_loc"
 			else
@@ -246,7 +246,7 @@ EOR
 		fi
 		sleep 1
 		currentdate=$(date)
-		if cp "$ssh_iloc" "$ssh_loc" &>/dev/null ; then
+		if cp -f "$ssh_iloc" "$ssh_loc" &>/dev/null ; then
 			if chmod +x "$ssh_loc" &>/dev/null ; then
 				echo "$process [$currentdate] sunshine reinstalled" >> "$stdout_loc"
 			else
@@ -257,7 +257,7 @@ EOR
 		fi
 		sleep 1
 		currentdate=$(date)
-		if cp "$clc_iloc" "$clc_loc" &>/dev/null ; then
+		if cp -f "$clc_iloc" "$clc_loc" &>/dev/null ; then
 			if chmod +x "$clc_loc" &>/dev/null ; then
 				echo "$process [$currentdate] CoreLocationCLI reinstalled" >> "$stdout_loc"
 			else
@@ -281,21 +281,22 @@ EOR
 		else
 			echo "$process [$currentdate] error loading cck agent" >> "$stderr_loc"
 		fi
+		! defaults read "$prefs" checkFullscreen &>/dev/null && defaults write "$prefs" checkFullscreen -bool true 2>/dev/null
 		afplay -v -q 1 -r 1.00 -v 0.10 "$soundsdir/$defaultsound" 2>/dev/null
 		exit
 	fi
 	mkdir -p "$soundsdir" 2>/dev/null
 	mkdir "$bindir" 2>/dev/null
-	cp -r "$payloaddir/sounds" "$configdir" 2>/dev/null
+	cp -rf "$payloaddir/sounds" "$configdir" 2>/dev/null
 	sleep .5
 	! [[ -d "$soundsdir" ]] && mkdir "$soundsdir" 2>/dev/null
 	sleep .5
-	! [[ -f "$soundsdir/$defaultsound" ]] && cp "$dsnd_iloc" "$soundsdir/$defaultsound" 2>/dev/null
-	cp "$cck_iloc" "$cck_loc" 2>/dev/null
+	! [[ -f "$soundsdir/$defaultsound" ]] && cp -f "$dsnd_iloc" "$soundsdir/$defaultsound" 2>/dev/null
+	cp -f "$cck_iloc" "$cck_loc" 2>/dev/null
 	touch "$blacklist_loc" 2>/dev/null
 	chmod +x "$cck_loc" 2>/dev/null
-	cp "$ssh_iloc" "$ssh_loc" 2>/dev/null
-	cp "$clc_iloc" "$clc_loc" 2>/dev/null
+	cp -f "$ssh_iloc" "$ssh_loc" 2>/dev/null
+	cp -f "$clc_iloc" "$clc_loc" 2>/dev/null
 	chmod +x "$ssh_loc" 2>/dev/null
 	newagent=$(sed "s-BINDIR-$bindir-" 2>/dev/null < "$agent_iloc")
 	chmod +x "$clc_loc" 2>/dev/null
@@ -512,7 +513,7 @@ if [[ $1 == "agent" ]] ; then
 				echo "$process [$currentdate] created directory" >> "$stdout_loc"
 			fi
 		fi
-		if ! mv "$agent_loc" "$disable_loc" &>/dev/null ; then
+		if ! mv -f "$agent_loc" "$disable_loc" &>/dev/null ; then
 			echo "$process [$currentdate] error disabling agent" >> "$stderr_loc"
 		else
 			echo "$process [$currentdate] disabled agent" >> "$stdout_loc"
@@ -522,7 +523,7 @@ if [[ $1 == "agent" ]] ; then
 			echo "$process [$currentdate] error finding agent" >> "$stderr_loc"
 		else
 			echo "$process [$currentdate] agent found" >> "$stdout_loc"
-			if ! mv "$disable_loc" "$agent_loc" &>/dev/null ; then
+			if ! mv -f "$disable_loc" "$agent_loc" &>/dev/null ; then
 				echo "$process [$currentdate] error enabling agent" >> "$stderr_loc"
 			else
 				echo "$process [$currentdate] enabled agent" >> "$stdout_loc"
@@ -704,7 +705,7 @@ if [[ $1 = "-filenames" ]] ; then
 				echo "$process [$currentdate] unknown format/encoding '$ssbase'" >> "$stderr_loc"
 				continue
 			fi
-			if ! cp "$selected_sound" "$soundsdir/$ssbase" ; then
+			if ! cp -f "$selected_sound" "$soundsdir/$ssbase" ; then
 				echo "$process [$currentdate] error copying '$ssbase'" >> "$stderr_loc"
 			else
 				echo "$process [$currentdate] imported '$ssbase'" >> "$stdout_loc"
@@ -749,7 +750,7 @@ EOS
 			echo "$process [$currentdate] unknown format/encoding '$ssbase'" >> "$stderr_loc"
 			continue
 		fi
-		if ! cp "$selected_sound" "$soundsdir/$ssbase" ; then
+		if ! cp -f "$selected_sound" "$soundsdir/$ssbase" ; then
 			echo "$process [$currentdate] error copying '$ssbase'" >> "$stderr_loc"
 		else
 			echo "$process [$currentdate] imported '$ssbase'" >> "$stdout_loc"
@@ -767,7 +768,7 @@ fi
 if [[ $1 == "trash" ]] ; then
 	shift
 	currentdate=$(date)
-	if ! mv "$soundsdir/$*" "$HOMEDIR/.Trash/$*" &>/dev/null ; then
+	if ! mv -f "$soundsdir/$*" "$HOMEDIR/.Trash/$*" &>/dev/null ; then
 		echo "$process [$currentdate] error trashing '$*'" >> "$stderr_loc"
 	else
 		echo "$process [$currentdate] trashed '$*'" >> "$stdout_loc"
@@ -1003,6 +1004,7 @@ if $prefsexist ; then
 			audiorate="0.33"
 		fi
 	fi
+	[[ $(/usr/libexec/PlistBuddy -c "Print:checkFullscreen" "$prefsloc" 2>/dev/null) == "true" ]] && fullscreentest=true || fullscreentest=false
 	[[ $(/usr/libexec/PlistBuddy -c "Print:skipApps" "$prefsloc" 2>/dev/null) == "true" ]] && blacklistenabled=true || blacklistenabled=false
 	[[ $(/usr/libexec/PlistBuddy -c "Print:skipAudio" "$prefsloc" 2>/dev/null) == "true" ]] && skipaudio=true || skipaudio=false
 	[[ $(/usr/libexec/PlistBuddy -c "Print:skipScreensaver" "$prefsloc" 2>/dev/null) == "true" ]] && skipsaver=true || skipsaver=false
@@ -1243,6 +1245,7 @@ else
 	soundsource="cck"
 	volume="0.10"
 	audiorate="1.00"
+	fullscreentest=true
 	blacklistenabled=true
 	skipaudio=true
 	skipsaver=true
@@ -1790,9 +1793,15 @@ fi
 
 echo "-----"
 if $istriduum ; then
+	echo "--Skip During Fullscreen"
 	echo "--Skip During Screensaver"
 	echo "--Skip During Screen Sleep"
 else
+	if $fullscreentest ; then
+		echo "--Skip During Fullscreen | checked=true refresh=true terminal=false bash=/usr/bin/defaults param1=write param2=\"$prefs\" param3=checkFullscreen param4=-bool param5=false param6=2>/dev/null"
+	else
+		echo "--Skip During Fullscreen | refresh=true terminal=false bash=/usr/bin/defaults param1=write param2=\"$prefs\" param3=checkFullscreen param4=-bool param5=true param6=2>/dev/null"
+	fi
 	if $skipsaver ; then
 		echo "--Skip During Screensaver | checked=true refresh=true terminal=false bash=/usr/bin/defaults param1=write param2=\"$prefs\" param3=skipScreensaver param4=-bool param5=false param6=2>/dev/null"
 	else
