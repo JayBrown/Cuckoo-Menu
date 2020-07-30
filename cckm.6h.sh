@@ -1978,7 +1978,6 @@ else
 fi
 
 echo "---"
-
 echo "Refresh… | refresh=true"
 
 exit
