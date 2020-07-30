@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # <bitbar.title>Cuckoo Menu</bitbar.title>
-# <bitbar.version>v1.0b5</bitbar.version>
+# <bitbar.version>v1.0-beta10-b8</bitbar.version>
 # <bitbar.author>Joss Brown (pseud.)</bitbar.author>
 # <bitbar.author.github>JayBrown</bitbar.author.github>
 # <bitbar.desc>Manage the Cuckoo Agent (cck) from the menu bar</bitbar.desc>
