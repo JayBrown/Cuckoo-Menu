@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # <bitbar.title>Cuckoo Menu</bitbar.title>
-# <bitbar.version>v1.0-beta10-b8</bitbar.version>
+# <bitbar.version>v1.0.2-beta10-b10</bitbar.version>
 # <bitbar.author>Joss Brown (pseud.)</bitbar.author>
 # <bitbar.author.github>JayBrown</bitbar.author.github>
 # <bitbar.desc>Manage the Cuckoo Agent (cck) from the menu bar</bitbar.desc>
@@ -13,7 +13,7 @@
 
 # Cuckoo Menu
 # BitBar plugin
-# Version: 1.0.1 beta 10 build 9
+# Version: 1.0.2 beta 10 build 10
 # Note: beta number conforms to BitBar's beta number
 # Category: Time
 #
@@ -33,10 +33,10 @@ export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin:/opt/local/bin:/opt/sw/
 
 # BitBar & dependency stuff
 monofont="font=Menlo-Regular size=10"
-version="1.0.1" # only for display
-cversion="1.01" # for version comparisons
+version="1.0.2" # only for display
+cversion="1.02" # for version comparisons
 betaversion="10"
-build="9"
+build="10"
 if [[ $betaversion ]] ; then
 	vmisc=" beta $betaversion"
 else
@@ -281,7 +281,6 @@ EOR
 		else
 			echo "$process [$currentdate] error loading cck agent" >> "$stderr_loc"
 		fi
-		! defaults read "$prefs" checkFullscreen &>/dev/null && defaults write "$prefs" checkFullscreen -bool true 2>/dev/null
 		afplay -v -q 1 -r 1.00 -v 0.10 "$soundsdir/$defaultsound" 2>/dev/null
 		exit
 	fi
@@ -1004,6 +1003,7 @@ if $prefsexist ; then
 			audiorate="0.33"
 		fi
 	fi
+	[[ $(/usr/libexec/PlistBuddy -c "Print:respectDoNotDisturb" "$prefsloc" 2>/dev/null) == "true" ]] && donotdisturb=true || donotdisturb=false
 	[[ $(/usr/libexec/PlistBuddy -c "Print:checkFullscreen" "$prefsloc" 2>/dev/null) == "true" ]] && fullscreentest=true || fullscreentest=false
 	[[ $(/usr/libexec/PlistBuddy -c "Print:skipApps" "$prefsloc" 2>/dev/null) == "true" ]] && blacklistenabled=true || blacklistenabled=false
 	[[ $(/usr/libexec/PlistBuddy -c "Print:skipAudio" "$prefsloc" 2>/dev/null) == "true" ]] && skipaudio=true || skipaudio=false
@@ -1240,12 +1240,13 @@ if $prefsexist ; then
 		fi
 	fi
 else
+	donotdisturb=false
 	ccksound="$defaultsound"
 	ccksound_raw="$defaultsound"
 	soundsource="cck"
 	volume="0.10"
 	audiorate="1.00"
-	fullscreentest=true
+	fullscreentest=false
 	blacklistenabled=true
 	skipaudio=true
 	skipsaver=true
@@ -1885,6 +1886,16 @@ else
 	else
 		echo "--Quiet Mode"
 		echo "--Chimes | refresh=true terminal=false bash=$0 param1=chimes param2=enable"
+	fi
+fi
+echo "-----"
+if $istriduum ; then
+	echo "--Respect Do Not Disturb | checked=true"
+else
+	if $donotdisturb ; then
+		echo "--Respect Do Not Disturb | checked=true refresh=true terminal=false bash=/usr/bin/defaults param1=write param2=\"$prefs\" param3=respectDoNotDisturb param4=-bool param5=false param6=2>/dev/null"
+	else
+		echo "--Respect Do Not Disturb | refresh=true terminal=false bash=/usr/bin/defaults param1=write param2=\"$prefs\" param3=respectDoNotDisturb param4=-bool param5=true param6=2>/dev/null"
 	fi
 fi
 echo "-----"

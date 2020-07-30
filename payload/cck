@@ -1,13 +1,13 @@
 #!/bin/zsh
 # shellcheck shell=bash
 
-# Cuckoo Agent (cck v1.0.1)
+# Cuckoo Agent (cck v1.0.2)
 # agent shell script
 
 export LANG=en_US.UTF-8
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin
 
-vstr="1.01"
+vstr="1.02"
 process="cck"
 cckmbase="cckm.6h.sh"
 
@@ -44,6 +44,7 @@ if ! [[ -f "$prefsloc" ]] || $init ; then
 	defaults write "$prefs" notBefore "7" 2>/dev/null
 	defaults write "$prefs" Notifications -bool false 2>/dev/null
 	defaults write "$prefs" PlaybackRate "1.00" 2>/dev/null
+	defaults write "$prefs" respectDoNotDisturb -bool true 2>/dev/null
 	defaults write "$prefs" SearchDir "$HOMEDIR/Music" 2>/dev/null
 	defaults write "$prefs" silentTriduum -bool false 2>/dev/null
 	defaults write "$prefs" skipApps -bool true 2>/dev/null
@@ -139,6 +140,14 @@ if ! $tollquarter ; then
 		fi
 	else
 		echo "$process $timestr error: wrong interval" >&2
+		exit
+	fi
+fi
+
+# check macOS "Do Not Disturb"
+if [[ $(/usr/libexec/PlistBuddy -c "Print:respectDoNotDisturb" "$prefsloc" 2>/dev/null) == "true" ]] ; then
+	if [[ $(defaults -currentHost read ~/Library/Preferences/ByHost/com.apple.notificationcenterui doNotDisturb 2>/dev/null) == "1" ]] ; then
+		echo "$process $timestr macOS doNotDisturb: skipping" >&2
 		exit
 	fi
 fi
