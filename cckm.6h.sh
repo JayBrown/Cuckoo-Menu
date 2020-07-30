@@ -16,12 +16,17 @@
 # Version: 1.0.0 beta 10 build 8
 # Note: beta number conforms to BitBar's beta number
 # Category: Time
-
+#
 # BitBar: https://github.com/matryer/bitbar & https://getbitbar.com
 # BitBar v2.0.0 beta10 (requisite): https://github.com/matryer/bitbar/releases/tag/v2.0.0-beta10
+#
+# CoreLocationCLI: https://github.com/fulldecent/corelocationcli
+# CoreLocationCLI v3.1.0 (dependency): https://github.com/fulldecent/corelocationcli/releases/tag/3.1.0
+#
 # sunshine: https://github.com/crescentrose/sunshine
 # sunshine v0.3.0 (dependency): https://github.com/crescentrose/sunshine/releases
-# Original Cuckoo PreferencePane (abandonware): http://toastycode.com/cuckoo/
+#
+# Original Cuckoo PreferencePane (probably abandonware): http://toastycode.com/cuckoo/
 
 export LANG=en_US.UTF-8
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin:/opt/local/bin:/opt/sw/bin:/sw/bin
