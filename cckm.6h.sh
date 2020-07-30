@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # <bitbar.title>Cuckoo Menu</bitbar.title>
-# <bitbar.version>v1.0.2-beta10-b10</bitbar.version>
+# <bitbar.version>v1.0.3-beta10-b11</bitbar.version>
 # <bitbar.author>Joss Brown (pseud.)</bitbar.author>
 # <bitbar.author.github>JayBrown</bitbar.author.github>
 # <bitbar.desc>Manage the Cuckoo Agent (cck) from the menu bar</bitbar.desc>
@@ -13,7 +13,7 @@
 
 # Cuckoo Menu
 # BitBar plugin
-# Version: 1.0.2 beta 10 build 10
+# Version: 1.0.3 beta 10 build 11
 # Note: beta number conforms to BitBar's beta number
 # Category: Time
 #
@@ -33,10 +33,10 @@ export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin:/opt/local/bin:/opt/sw/
 
 # BitBar & dependency stuff
 monofont="font=Menlo-Regular size=10"
-version="1.0.2" # only for display
-cversion="1.02" # for version comparisons
+version="1.0.3" # only for display
+cversion="1.03" # for version comparisons
 betaversion="10"
-build="10"
+build="11"
 if [[ $betaversion ]] ; then
 	vmisc=" beta $betaversion"
 else

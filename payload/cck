@@ -1,13 +1,13 @@
 #!/bin/zsh
 # shellcheck shell=bash
 
-# Cuckoo Agent (cck v1.0.2)
+# Cuckoo Agent (cck v1.0.3)
 # agent shell script
 
 export LANG=en_US.UTF-8
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin
 
-vstr="1.02"
+vstr="1.03"
 process="cck"
 cckmbase="cckm.6h.sh"
 
@@ -417,12 +417,23 @@ if [[ $(/usr/libexec/PlistBuddy -c "Print:AfterHours" "$prefsloc" 2>/dev/null) =
 			else
 				[[ $notafter == 0 ]] && notafter="24"
 				[[ $notbefore == 0 ]] && notbefore="24"
-				if [[ $current_hour -gt "$notafter" ]] || [[ $current_hour -lt "$notbefore" ]] ; then
-					! $wouldskip && echo "$process $timestr after-hours: skipping..." >&2
-					if ! $warn ; then
-						exit
-					else
-						wouldskip=true
+				if [[ $notafter -gt "$notbefore" ]] ; then # notAfter hour greater than notBefore hour, i.e. last chime before midnight
+					if [[ $current_hour -gt "$notafter" ]] || [[ $current_hour -lt "$notbefore" ]] ; then
+						! $wouldskip && echo "$process $timestr after-hours: skipping..." >&2
+						if ! $warn ; then
+							exit
+						else
+							wouldskip=true
+						fi
+					fi
+				elif [[ $notafter -lt "$notbefore" ]] ; then # notAfter hour less than notBefore hour, i.e. last chime after midnight
+					if [[ $current_hour -lt "$notbefore" ]] && [[ $current_hour -gt "$notafter" ]] ; then
+						! $wouldskip && echo "$process $timestr after-hours: skipping..." >&2
+						if ! $warn ; then
+							exit
+						else
+							wouldskip=true
+						fi
 					fi
 				fi
 			fi
@@ -479,15 +490,27 @@ if [[ $(/usr/libexec/PlistBuddy -c "Print:AfterHours" "$prefsloc" 2>/dev/null) =
 									wouldskip=true
 								fi
 							fi
-						fi
-						[[ $sunrise_hour == 0 ]] && sunrise_hour="24"
-						[[ $sunset_hour == 0 ]] && sunset_hour="24"
-						if [[ $current_hour -gt "$sunset_hour" ]] || [[ $current_hour -lt "$sunrise_hour" ]] ; then
-							! $wouldskip && echo "$process $timestr sun is down: skipping (Night Mode)" >&2
-							if ! $warn ; then
-								exit
-							else
-								wouldskip=true
+						else
+							[[ $sunrise_hour == 0 ]] && sunrise_hour="24"
+							[[ $sunset_hour == 0 ]] && sunset_hour="24"
+							if [[ $sunset_hour -gt "$sunrise_hour" ]] ; then # sunset before midnight
+								if [[ $current_hour -gt "$sunset_hour" ]] || [[ $current_hour -lt "$sunrise_hour" ]] ; then
+									! $wouldskip && echo "$process $timestr sun is down: skipping (Night Mode)" >&2
+									if ! $warn ; then
+										exit
+									else
+										wouldskip=true
+									fi
+								fi
+							elif [[ $sunset_hour -lt "$sunrise_hour" ]] ; then # sunset after midnight
+								if [[ $current_hour -gt "$sunset_hour" ]] && [[ $current_hour -lt "$sunrise_hour" ]] ; then
+									! $wouldskip && echo "$process $timestr sun is down: skipping (Night Mode)" >&2
+									if ! $warn ; then
+										exit
+									else
+										wouldskip=true
+									fi
+								fi
 							fi
 						fi
 					fi
