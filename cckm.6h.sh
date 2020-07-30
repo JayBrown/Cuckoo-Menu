@@ -1711,12 +1711,12 @@ elif $reqerror ; then
 fi
 
 if $istriduum ; then
-	echo "--Interval: $cckinterval minutes"
+	echo "--Interval: $cckinterval Minutes"
 else
 	if ! $tollquarter ; then
-		echo "--Interval: $cckinterval minutes | refresh=true terminal=false bash=$0 param1=settings param2=interval param3=\"$cckinterval\""
+		echo "--Interval: $cckinterval Minutes | refresh=true terminal=false bash=$0 param1=settings param2=interval param3=\"$cckinterval\""
 	else
-		echo "--Interval: 🔒 $cckinterval minutes"
+		echo "--Interval: 🔒 $cckinterval Minutes"
 	fi
 fi
 
