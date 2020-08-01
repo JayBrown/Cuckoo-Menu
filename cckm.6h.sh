@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # <bitbar.title>Cuckoo Menu</bitbar.title>
-# <bitbar.version>v1.0.3-beta10-b11</bitbar.version>
+# <bitbar.version>v1.0.4-beta10-b12</bitbar.version>
 # <bitbar.author>Joss Brown (pseud.)</bitbar.author>
 # <bitbar.author.github>JayBrown</bitbar.author.github>
 # <bitbar.desc>Manage the Cuckoo Agent (cck) from the menu bar</bitbar.desc>
@@ -11,7 +11,7 @@
 # <bitbar.abouturl>https://github.com/JayBrown/bitbar-Cuckoo-Menu</bitbar.abouturl>
 # <bitbar.droptypes>filenames</bitbar.droptypes>
 
-# Cuckoo Menu
+# Cuckoo Menu (cckm)
 # BitBar plugin
 # Version: 1.0.3 beta 10 build 11
 # Note: beta number conforms to BitBar's beta number
@@ -33,10 +33,10 @@ export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin:/opt/local/bin:/opt/sw/
 
 # BitBar & dependency stuff
 monofont="font=Menlo-Regular size=10"
-version="1.0.3" # only for display
-cversion="1.03" # for version comparisons
+version="1.0.4" # only for display
+cversion="1.04" # for version comparisons
 betaversion="10"
-build="11"
+build="12"
 if [[ $betaversion ]] ; then
 	vmisc=" beta $betaversion"
 else
@@ -624,9 +624,8 @@ EOV
 	currentdate=$(date)
 	if [[ $volinput ]] ; then
 		if [[ $volinput != "$currentvol" ]] ; then
-			# volume=$()
-			! echo "$volinput > 1.00" | bc -l &>/dev/null && volinput=1.00
-			! echo "$volinput < 0.01" | bc -l &>/dev/null && volinput=0.01	
+			[[ $(echo "$volinput > 1.00" | bc -l 2>/dev/null) == "1" ]] && volinput=1.00
+			[[ $(echo "$volinput < 0.01" | bc -l 2>/dev/null) == "1" ]] && volinput=0.01	
 			if [[ $volinput != "$currentvol" ]] ; then
 				if /usr/libexec/PlistBuddy -c "Set:Volume '$volinput'" "$prefsloc" &>/dev/null ; then
 					echo "$process [$currentdate] volume changed to $volinput" >> "$stdout_loc"
@@ -667,8 +666,8 @@ EOR
 	currentdate=$(date)
 	if [[ $rateinput ]] ; then
 		if [[ $rateinput != "$currentrate" ]] ; then
-			! echo "$rateinput > 3.00" | bc -l &>/dev/null && rateinput=3.00
-			! echo "$rateinput < 0.33" | bc -l &>/dev/null && rateinput=0.33	
+			[[ $(echo "$rateinput > 3.00" | bc -l 2>/dev/null) == "1" ]] && rateinput=3.00
+			[[ $(echo "$rateinput < 0.33" | bc -l 2>/dev/null) == "1" ]] && rateinput=0.33	
 			if [[ $rateinput != "$currentrate" ]] ; then
 				if /usr/libexec/PlistBuddy -c "Set:PlaybackRate '$rateinput'" "$prefsloc" &>/dev/null ; then
 					echo "$process [$currentdate] playback rate changed to $rateinput" >> "$stdout_loc"
@@ -843,7 +842,7 @@ if $cckexists ; then
 	if ! [[ $cckversion ]] ; then
 		needsreinstall=true
 	else
-		if ! echo "$cckversion < $version" | bc -l &>/dev/null ; then
+		if [[ $(echo "$cckversion < $cversion" | bc -l 2>/dev/null) == "1" ]] ; then
 			needsreinstall=true
 		else
 			needsreinstall=false
@@ -992,14 +991,14 @@ if $prefsexist ; then
 	fi
 	volume=$(/usr/libexec/PlistBuddy -c "Print:Volume" "$prefsloc" 2>/dev/null)
 	! [[ $volume ]] && volume="0.10"
-	! echo "$volume > 1.00" | bc -l &>/dev/null && volume=1.00
-	! echo "$volume < 0.01" | bc -l &>/dev/null && volume=0.01
+	[[ $(echo "$volume > 1.00" | bc -l 2>/dev/null) == "1" ]] && volume=1.00
+	[[ $(echo "$volume < 0.01" | bc -l 2>/dev/null) == "1" ]] && volume=0.01
 	audiorate=$(/usr/libexec/PlistBuddy -c "Print:PlaybackRate" "$prefsloc" 2>/dev/null)
 	! [[ $audiorate ]] && audiorate="1.00"
-	if ! echo "$audiorate > 3.00" | bc -l &>/dev/null ; then
+	if [[ $(echo "$audiorate > 3.00" | bc -l 2>/dev/null) == "1" ]] ; then
 		audiorate="3.00"
 	else
-		if ! echo "$audiorate < 0.33" | bc -l &>/dev/null ; then
+		if [[ $(echo "$audiorate < 0.33" | bc -l 2>/dev/null) == "1" ]] ; then
 			audiorate="0.33"
 		fi
 	fi
@@ -1284,7 +1283,7 @@ if [[ $secsdiff -gt 86400 ]] ; then
 		defaults write "$prefs" lastUpdateCheck "$posixdate" 2>/dev/null
 		relversion=$(echo "$relversion_all" | head -1)
 		if [[ $relversion ]] ; then
-			if (( $(echo "$relversion > $cversion" | bc -l) )) ; then
+			if [[ $(echo "$relversion > $cversion" | bc -l 2>/dev/null) == "1" ]] ; then
 				newupdate=true
 				updstr="Version $relversion"
 			else
@@ -1296,7 +1295,7 @@ if [[ $secsdiff -gt 86400 ]] ; then
 					else
 						relbuild=$(echo "$relversion_all" | awk '/^build/{print $2}' 2>/dev/null)
 						if [[ $relbuild ]] ; then
-							if (( $(echo "$relbuild > $build" | bc -l) )) ; then
+							if [[ $(echo "$relbuild > $build" | bc -l 2>/dev/null) == "1" ]] ; then
 								newupdate=true
 								updstr="Build $relbuild"
 							else
@@ -1308,13 +1307,13 @@ if [[ $secsdiff -gt 86400 ]] ; then
 						fi
 					fi
 				else
-					if (( $(echo "$relbeta > $betaversion" | bc -l) )) ; then
+					if [[ $(echo "$relbeta > $betaversion" | bc -l 2>/dev/null) == "1" ]] ; then
 						newupdate=true
 						updstr="Beta $relbeta"
 					else
 						relbuild=$(echo "$relversion_all" | awk '/^build/{print $2}' 2>/dev/null)
 						if [[ $relbuild ]] ; then
-							if (( $(echo "$relbuild > $build" | bc -l) )) ; then
+							if [[ $(echo "$relbuild > $build" | bc -l 2>/dev/null) == "1" ]] ; then
 								newupdate=true
 								updstr="Build $relbuild"
 							else

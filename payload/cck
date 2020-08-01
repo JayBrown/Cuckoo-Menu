@@ -1,13 +1,13 @@
 #!/bin/zsh
 # shellcheck shell=bash
 
-# Cuckoo Agent (cck v1.0.3)
+# Cuckoo Agent (cck)
 # agent shell script
 
 export LANG=en_US.UTF-8
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin
 
-vstr="1.03"
+vstr="1.04"
 process="cck"
 cckmbase="cckm.6h.sh"
 
@@ -651,14 +651,14 @@ if ! $notify && ! $wouldskip ; then
 	fi
 	volume=$(/usr/libexec/PlistBuddy -c "Print:Volume" "$prefsloc" 2>/dev/null)
 	! [[ $volume ]] && volume="0.10"
-	! echo "$volume > 1.00" | bc -l &>/dev/null && volume=1.00
-	! echo "$volume < 0.01" | bc -l &>/dev/null && volume=0.01
+	[[ $(echo "$volume > 1.00" | bc -l 2>/dev/null) == "1" ]] && volume=1.00
+	[[ $(echo "$volume < 0.01" | bc -l 2>/dev/null) == "1" ]] && volume=0.01
 	audiorate=$(/usr/libexec/PlistBuddy -c "Print:PlaybackRate" "$prefsloc" 2>/dev/null)
 	! [[ $audiorate ]] && audiorate="1.00"
-	if ! echo "$audiorate > 3.00" | bc -l &>/dev/null ; then
+	if [[ $(echo "$audiorate > 3.00" | bc -l 2>/dev/null) == "1" ]] ; then
 		audiorate="3.00"
 	else
-		if ! echo "$audiorate < 0.33" | bc -l &>/dev/null ; then
+		if [[ $(echo "$audiorate < 0.33" | bc -l 2>/dev/null) == "1" ]] ; then
 			audiorate="0.33"
 		fi
 	fi
